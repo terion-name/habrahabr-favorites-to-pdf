@@ -2,7 +2,7 @@
 
 Download project, go to it's dir and
 ```
-php comopser.phar install
+php composer.phar install
 php fav2pdf.php username path/to/save
 ```
 
