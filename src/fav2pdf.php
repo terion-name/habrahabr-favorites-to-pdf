@@ -2,6 +2,7 @@
 
 date_default_timezone_set('Europe/Kiev');
 error_reporting(E_ERROR);
+set_time_limit(0);
 
 /*
  * Helper functions
