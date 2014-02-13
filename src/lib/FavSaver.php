@@ -25,15 +25,23 @@ class FavSaver
      * @var int
      */
     private $pagesLimit = 0;
-    private $saveDir = 'pdf';
+    /**
+     * @var string
+     */
+    private $saveDir;
+    /**
+     * @var bool
+     */
+    private $comments;
 
     /**
      * @param string $user
      */
-    function __construct($user, $saveDir = 'pdf')
+    function __construct($user, $saveDir = '../pdf', $comments = false)
     {
         $this->user = $user;
         $this->saveDir = $saveDir;
+        $this->comments = $comments;
     }
 
     /**
@@ -68,10 +76,8 @@ class FavSaver
                 break;
             }
         }
-
         $this->log('Found ' . count($this->urls) . ' links');
         return $this;
-
     }
 
     /**
@@ -86,6 +92,10 @@ class FavSaver
         return $msg;
     }
 
+    /**
+     * @param $str
+     * @return mixed|string
+     */
     function makeTitle($str)
     {
         $str = $this->rus2translit(trim($str));
@@ -95,6 +105,10 @@ class FavSaver
         return $str;
     }
 
+    /**
+     * @param $string
+     * @return string
+     */
     function rus2translit($string)
     {
         $converter = array(
@@ -138,7 +152,7 @@ class FavSaver
             $saveTo = $this->saveDir . '/' . str_replace('/', '-', $url['title']) . '.pdf';
 
             $pathToBinary = PHP_OS == 'Darwin' ? 'wkhtml/mac/wkhtmltopdf' : 'wkhtml/linux/wkhtmltopdf';
-            $snappy = new Pdf($pathToBinary);
+            $snappy = new Pdf(ROOT_DIR . '/' . $pathToBinary);
             $snappy->generateFromHtml($html, $saveTo, array(), true);
 
             $this->log('Saved to ' . $saveTo);
@@ -170,8 +184,10 @@ class FavSaver
         $ft = $xpath->query("//*[@class='ft']")->item(0);
         $tm = $xpath->query("//*[@class='tm']")->item(0);
 
-        if (is_object($comments) && is_object($comments->parentNode)) {
-            $comments->parentNode->removeChild($comments);
+        if (!$this->comments) {
+            if (is_object($comments) && is_object($comments->parentNode)) {
+                $comments->parentNode->removeChild($comments);
+            }
         }
 
         $bm->parentNode->removeChild($bm);
