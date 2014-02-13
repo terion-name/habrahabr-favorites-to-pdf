@@ -14,7 +14,6 @@
         ]
     },
     "require": {
-        "paquettg/php-html-parser": "*",
         "knplabs/knp-snappy": "dev-master"
     }
 }

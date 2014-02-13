@@ -1,7 +1,6 @@
 <?php
 
 use Knp\Snappy\Pdf;
-use PHPHtmlParser\Dom;
 
 /**
  * Class FavSaver
@@ -34,6 +33,12 @@ class FavSaver
      */
     private $comments;
 
+    private $linksTotal = 0;
+
+    private $linksSaved = 0;
+
+    private $failed = array();
+
     /**
      * @param string $user
      */
@@ -49,34 +54,52 @@ class FavSaver
      */
     public function parseUrls()
     {
+        $this->log(
+            'Parsing favs of user ' . $this->user
+            . ' to save in ' . $this->saveDir
+            . ($this->comments ? 'with' : 'without') . ' comments'
+        );
+
+        $this->log('==================');
+        $this->log('PARSING STARTED');
+        $this->log('==================');
+
         $page = 1;
-        $dom = new Dom;
+
         while (true) {
             if ($this->pagesLimit > 0 && $page > $this->pagesLimit) {
                 break;
             }
-            try {
-                $dom->loadFromUrl(sprintf($this->favsLink, $this->user, $page));
-                $links = $dom->find('.post_title');
-                $linksCount = count($links);
-                if ($linksCount == 0) {
-                    break;
-                }
-                $this->log("Fetched page $page with $linksCount links");
-
-                $links->each(function ($link) {
-                    $this->urls[] = array(
-                        'url' => $link->getAttribute('href'),
-                        'title' => $this->makeTitle($link->text)
-                    );
-                });
-
-                ++$page;
-            } catch (Exception $e) {
+            $html = @file_get_contents(sprintf($this->favsLink, $this->user, $page));
+            if (!$html) {
                 break;
             }
+
+            $doc = new DOMDocument();
+            $doc->loadHTML($html);
+            $xpath = new DOMXPath($doc);
+            $posts = $xpath->query("//*[@class='post_title']");
+            $linksCount = $posts->length;
+            if ($linksCount == 0) {
+                break;
+            }
+            $this->log("Fetched page $page with $linksCount links");
+            $this->linksTotal = $linksCount;
+
+            foreach ($posts as $link) {
+                $this->urls[] = array(
+                    'url' => $link->getAttribute('href'),
+                    'title' => $this->makeTitle(trim($link->nodeValue))
+                );
+            }
+
+            ++$page;
         }
+        $this->log('==================');
+        $this->log('PARSING FINISHED');
         $this->log('Found ' . count($this->urls) . ' links');
+        $this->log('==================');
+
         return $this;
     }
 
@@ -99,8 +122,8 @@ class FavSaver
     function makeTitle($str)
     {
         $str = $this->rus2translit(trim($str));
+        $str = preg_replace('/[^-a-zA-Z0-9_]+/u', '-', $str);
         $str = strtolower($str);
-        $str = preg_replace('~[^-a-z0-9_]+~u', '-', $str);
         $str = trim($str, "-");
         return $str;
     }
@@ -115,7 +138,7 @@ class FavSaver
             'а' => 'a', 'б' => 'b', 'в' => 'v',
             'г' => 'g', 'д' => 'd', 'е' => 'e',
             'ё' => 'e', 'ж' => 'zh', 'з' => 'z',
-            'и' => 'i', 'й' => 'y', 'к' => 'k',
+            'и' => 'i', 'й' => 'i', 'к' => 'k',
             'л' => 'l', 'м' => 'm', 'н' => 'n',
             'о' => 'o', 'п' => 'p', 'р' => 'r',
             'с' => 's', 'т' => 't', 'у' => 'u',
@@ -126,7 +149,7 @@ class FavSaver
             'А' => 'A', 'Б' => 'B', 'В' => 'V',
             'Г' => 'G', 'Д' => 'D', 'Е' => 'E',
             'Ё' => 'E', 'Ж' => 'Zh', 'З' => 'Z',
-            'И' => 'I', 'Й' => 'Y', 'К' => 'K',
+            'И' => 'I', 'Й' => 'I', 'К' => 'K',
             'Л' => 'L', 'М' => 'M', 'Н' => 'N',
             'О' => 'O', 'П' => 'P', 'Р' => 'R',
             'С' => 'S', 'Т' => 'T', 'У' => 'U',
@@ -143,10 +166,13 @@ class FavSaver
      */
     public function savePdf()
     {
+        $this->log('==================');
+        $this->log('SAVING STARTED');
+        $this->log('==================');
         if (!file_exists('pdf')) {
             mkdir('pdf');
         }
-        foreach ($this->urls as $url) {
+        foreach ($this->getUrls() as $url) {
             $this->log('Fetching ' . $url['url']);
             $html = $this->fetchPage($url['url']);
             $saveTo = $this->saveDir . '/' . str_replace('/', '-', $url['title']) . '.pdf';
@@ -156,7 +182,20 @@ class FavSaver
             $snappy->generateFromHtml($html, $saveTo, array(), true);
 
             $this->log('Saved to ' . $saveTo);
+            $this->linksSaved++;
         }
+
+        $this->log('==================');
+        $this->log('SAVING FINISHED');
+        $this->log('Favs found: ' . $this->linksTotal);
+        $this->log('Favs saved: ' . $this->linksSaved);
+        $this->log('Favs failed: ' . count($this->failed));
+        if (count($this->failed) > 0) {
+            foreach($this->failed as $f) {
+                $this->log($f);
+            }
+        }
+        $this->log('==================');
     }
 
     /**
@@ -173,12 +212,19 @@ class FavSaver
         }
 
         // Load DOM
-        $html = file_get_contents($url);
+        $html = @file_get_contents($url);
+        if (!$html) {
+            return $this->failed($url);
+        }
         $doc = new DOMDocument();
         $doc->loadHTML($html);
 
         // Remove comments and other stuff
         $xpath = new DOMXPath($doc);
+        $title = $xpath->query("//*[@class='title']");
+        if ($title->length == 0) {
+            return $this->failed($url);
+        }
         $comments = $xpath->query("//*[@class='cmts']")->item(0);
         $bm = $xpath->query("//*[@class='bm']")->item(0);
         $ft = $xpath->query("//*[@class='ft']")->item(0);
@@ -203,5 +249,15 @@ class FavSaver
     public function getUrls()
     {
         return $this->urls;
+    }
+
+    /**
+     * @param $url
+     * @return bool
+     */
+    protected function failed($url)
+    {
+        $this->failed[] = $url;
+        return false;
     }
 }
