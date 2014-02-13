@@ -170,6 +170,10 @@ class FavSaver
         // Get mobile version
         $url = str_replace('//habrahabr', '//m.habrahabr', $url);
 
+        if (strpos($url, 'company')) {
+            $url = preg_replace('/company\/.*\/blog/', 'post', $url);
+        }
+
         // Load DOM
         $html = file_get_contents($url);
         $doc = new DOMDocument();
