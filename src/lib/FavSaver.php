@@ -84,7 +84,6 @@ class FavSaver
                 break;
             }
             $this->log("Fetched page $page with $linksCount links");
-            $this->linksTotal = $linksCount;
 
             foreach ($posts as $link) {
                 $this->urls[] = array(
@@ -95,9 +94,12 @@ class FavSaver
 
             ++$page;
         }
+
+        $this->linksTotal = count($this->urls);
+
         $this->log('==================');
         $this->log('PARSING FINISHED');
-        $this->log('Found ' . count($this->urls) . ' links');
+        $this->log('Found ' . $this->linksTota . ' links');
         $this->log('==================');
 
         return $this;
@@ -221,7 +223,8 @@ class FavSaver
 
         // Remove comments and other stuff
         $xpath = new DOMXPath($doc);
-        $title = $xpath->query("//*[@class='title']");
+
+        $title = $xpath->query("//*[@class='c']/*[@class='p']/h1");
         if ($title->length == 0) {
             return $this->failed($url);
         }
