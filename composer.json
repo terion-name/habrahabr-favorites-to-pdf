@@ -1,0 +1,15 @@
+{
+    "name": "terion/habr-fav2pdf",
+    "description": "Save Habrahabr articles to pdf",
+    "minimum-stability": "stable",
+    "authors": [
+        {
+            "name": "Volodymyr Kornilov",
+            "email": "mail@terion.name"
+        }
+    ],
+    "require": {
+        "paquettg/php-html-parser": "*",
+        "knplabs/knp-snappy": "dev-master"
+    }
+}
