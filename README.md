@@ -1,12 +1,11 @@
 #Save habrahabr favorites to pdf files
 
-Download project, go to it's dir and
+Download project or fav2pdf executable only and run:
 ```
-php composer.phar install
-php fav2pdf.php username path/to/save
+path/to/fav2pdf username path/to/save
 ```
 
-Supports linux and mac os
+Supports mac os and linux
 
 ##Important note
 This script will grab only public posts!
