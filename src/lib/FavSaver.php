@@ -99,7 +99,7 @@ class FavSaver
 
         $this->log('==================');
         $this->log('PARSING FINISHED');
-        $this->log('Found ' . $this->linksTota . ' links');
+        $this->log('Found ' . $this->linksTotal . ' links');
         $this->log('==================');
 
         return $this;
